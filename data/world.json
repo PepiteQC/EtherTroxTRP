@@ -1,0 +1,167 @@
+{
+  "props": [
+    {
+      "id": "prop_bench_01",
+      "model": "lowpoly_bench",
+      "position": {
+        "x": 2.5,
+        "y": 0,
+        "z": 1.2
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      },
+      "hasPhysics": true
+    },
+    {
+      "id": "prop_atm_01",
+      "model": "lowpoly_atm",
+      "position": {
+        "x": -9.2,
+        "y": 0,
+        "z": -19.5
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "hasPhysics": true
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "veh_spawn_cruiser",
+      "model": "police_cruiser",
+      "position": {
+        "x": -18,
+        "y": 0,
+        "z": 8
+      },
+      "rotation": {
+        "x": 0,
+        "y": 180,
+        "z": 0
+      },
+      "plate": "LSPD-01",
+      "state": {
+        "fuel": 100,
+        "bodyHealth": 1000
+      }
+    }
+  ],
+  "zones": [
+    {
+      "name": "spawn",
+      "center": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "radius": 5,
+      "type": "safe",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "hospital",
+      "center": {
+        "x": 20,
+        "y": 0,
+        "z": 10
+      },
+      "radius": 8,
+      "type": "ems",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "police",
+      "center": {
+        "x": -20,
+        "y": 0,
+        "z": 10
+      },
+      "radius": 8,
+      "type": "police",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "garage",
+      "center": {
+        "x": 15,
+        "y": 0,
+        "z": -15
+      },
+      "radius": 7,
+      "type": "garage",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "bank",
+      "center": {
+        "x": -10,
+        "y": 0,
+        "z": -20
+      },
+      "radius": 6,
+      "type": "robbery",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "market",
+      "center": {
+        "x": 25,
+        "y": 0,
+        "z": -5
+      },
+      "radius": 5,
+      "type": "shop",
+      "createdAt": 1782099784283
+    },
+    {
+      "name": "darkzone",
+      "center": {
+        "x": -30,
+        "y": 0,
+        "z": -30
+      },
+      "radius": 10,
+      "type": "danger",
+      "createdAt": 1782099784283
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_banker_01",
+      "name": "Matthieu",
+      "type": "merchant",
+      "model": "skin_suit_01",
+      "position": {
+        "x": -10,
+        "y": 0,
+        "z": -22
+      },
+      "heading": 180,
+      "interactions": [
+        "bank_deposit",
+        "bank_withdraw"
+      ]
+    },
+    {
+      "id": "npc_dealer_01",
+      "name": "Inconnu",
+      "type": "blackmarket",
+      "model": "skin_hoodie_black",
+      "position": {
+        "x": -32.5,
+        "y": 0,
+        "z": -31
+      },
+      "heading": 45,
+      "interactions": [
+        "buy_illegal_items"
+      ]
+    }
+  ]
+}

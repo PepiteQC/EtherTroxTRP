@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>TroxT Sandbox</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#root{width:100%;height:100%;overflow:hidden;background:#060c1a;font-family:"Segoe UI",Arial,sans-serif;color:#e2e8f0}
+.shell{width:100%;height:100%;position:relative}
+canvas{position:absolute;inset:0}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;justify-content:space-between;padding:12px;gap:10px;overflow:hidden}
+.col{display:flex;flex-direction:column;gap:8px;width:300px;overflow:hidden}
+.panel{background:rgba(4,8,22,.85);border:1px solid rgba(70,120,255,.2);border-radius:12px;padding:10px 12px;backdrop-filter:blur(16px);box-shadow:0 6px 28px rgba(0,0,0,.45);pointer-events:auto;flex-shrink:0}
+.panel h2{font-size:13px;font-weight:700;color:#93c5fd;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700}
+.ok{background:#064e3b;color:#6ee7b7}.warn{background:#78350f;color:#fcd34d}.danger{background:#7f1d1d;color:#fca5a5}
+form{display:flex;gap:6px;margin-top:6px}
+input{flex:1;background:#080f20;border:1px solid #1e3a6e;color:#e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;outline:none}
+input:focus{border-color:#3b82f6}
+.btn{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:700;font-size:12px}
+.btn:hover{opacity:.85}
+.btn-xs{padding:4px 8px;font-size:11px;border-radius:6px}
+.quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.feed{max-height:160px;overflow-y:auto;font-size:11px;line-height:1.5;white-space:pre-wrap;color:#94a3b8;margin-top:4px}
+.feed::-webkit-scrollbar{width:3px}.feed::-webkit-scrollbar-thumb{background:#1e3a6e;border-radius:3px}
+.sr{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.sr:last-child{border:none}.sv{color:#7dd3fc;font-weight:600}
+.last{font-size:11px;color:#fbbf24;margin-top:6px;min-height:16px;line-height:1.4}
+.player-tag{background:rgba(0,0,0,.8);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:4px 7px;font-size:10px;text-align:center;line-height:1.4;white-space:nowrap;pointer-events:none}
+.zone-tag{background:rgba(0,0,0,.7);border-radius:5px;padding:3px 6px;font-size:9px;color:#fbbf24;pointer-events:none}
+.tab-row{display:flex;gap:4px;margin-bottom:6px}
+.tab{padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer;background:#0d1428;border:1px solid #1e3a6e;color:#94a3b8}
+.tab.active{background:#1e3a6e;color:#fff;border-color:#3b82f6}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React,{useEffect,useState,useRef,useCallback,useMemo} from"https://esm.sh/react@18";
+import{createRoot}from"https://esm.sh/react-dom@18/client";
+import htm from"https://esm.sh/htm@3";
+import{Canvas,useFrame}from"https://esm.sh/@react-three/fiber@8";
+import{OrbitControls,Grid,Html,Stars}from"https://esm.sh/@react-three/drei@9";
+
+const html=htm.bind(React.createElement);
+
+const EMPTY={serverTime:Date.now(),worldState:{mode:"sandbox",playerCount:0,worldEvents:[],weather:"sunny",hour:12,rulesCount:5,memorySize:0},players:{totalPlayers:0,connectedPlayers:0,players:[]},eye:{totalObservations:0,totalEvents:0},world:{props:[],vehicles:[],zones:[],npcs:[],counts:{props:0,vehicles:0,zones:0,npcs:0}}};
+
+function colorFor(p){
+  const j=(p.job||"").toLowerCase();
+  if(p.wanted>=4)return"#ff4d6d";
+  if(p.wanted>=2)return"#fb923c";
+  if(j.includes("police"))return"#60a5fa";
+  if(j.includes("ems")||j.includes("medic"))return"#34d399";
+  if(j.includes("fire"))return"#f97316";
+  if(j.includes("mechanic"))return"#fbbf24";
+  if(j.includes("mayor"))return"#facc15";
+  if(j.includes("gang")||j.includes("dealer"))return"#c084fc";
+  if(j.includes("taxi"))return"#fde047";
+  return"#94a3b8";
+}
+
+function zoneColor(type){
+  const m={safe:"#34d399",ems:"#f87171",police:"#60a5fa",garage:"#fbbf24",robbery:"#a78bfa",shop:"#fb923c",danger:"#ef4444",info:"#94a3b8"};
+  return m[type]||"#94a3b8";
+}
+
+function lerp(a,b,t){return a+(b-a)*t}
+
+function PlayerMesh({player}){
+  const ref=useRef();
+  const posRef=useRef({x:player.position?.x||0,z:player.position?.z||0});
+  const targetRef=useRef({x:player.position?.x||0,z:player.position?.z||0});
+  const color=colorFor(player);
+
+  useEffect(()=>{
+    targetRef.current={x:player.position?.x||0,z:player.position?.z||0};
+  },[player.position?.x,player.position?.z]);
+
+  useFrame((_,dt)=>{
+    if(!ref.current)return;
+    posRef.current.x=lerp(posRef.current.x,targetRef.current.x,dt*4);
+    posRef.current.z=lerp(posRef.current.z,targetRef.current.z,dt*4);
+    ref.current.position.x=posRef.current.x;
+    ref.current.position.z=posRef.current.z;
+    ref.current.rotation.y+=dt*0.5;
+  });
+
+  return html`
+    <group ref=${ref}>
+      <mesh position=${[0,0.9,0]} castShadow>
+        <boxGeometry args=${[0.85,1.7,0.85]}/>
+        <meshStandardMaterial color=${color} roughness=${0.35} metalness=${0.1}/>
+      </mesh>
+      <mesh position=${[0,0.05,0]}>
+        <cylinderGeometry args=${[0.55,0.55,0.06,16]}/>
+        <meshStandardMaterial color=${color} opacity=${0.18} transparent/>
+      </mesh>
+      ${player.vehicle?html`
+        <mesh position=${[0,0.26,-1.5]} castShadow>
+          <boxGeometry args=${[1.65,0.46,2.8]}/>
+          <meshStandardMaterial color=${"#34d399"} roughness=${0.3}/>
+        </mesh>
+      `:null}
+      <${Html} position=${[0,2.25,0]} center distanceFactor=${15}>
+        <div class="player-tag">
+          <div><b>${player.name}</b>${player.wanted>0?" "+"★".repeat(player.wanted):""}</div>
+          <div>${player.job} | $${player.money}</div>
+          ${player.vehicle?`<div style="color:#34d399">${player.vehicle}</div>`:""}
+          <div style="color:${player.health>50?"#6ee7b7":"#fca5a5"}">${player.health}HP${player.armor>0?" | "+player.armor+"A":""}</div>
+        </div>
+      <//>
+    </group>`;
+}
+
+function ZoneMesh({zone}){
+  const color=zoneColor(zone.type);
+  const r=zone.radius;
+  return html`
+    <group position=${[zone.center.x,0.01,zone.center.z]}>
+      <mesh rotation=${[-Math.PI/2,0,0]}>
+        <ringGeometry args=${[r-0.15,r,32]}/>
+        <meshStandardMaterial color=${color} opacity=${0.35} transparent/>
+      </mesh>
+      <mesh rotation=${[-Math.PI/2,0,0]}>
+        <circleGeometry args=${[r,32]}/>
+        <meshStandardMaterial color=${color} opacity=${0.05} transparent/>
+      </mesh>
+      <${Html} position=${[0,0.5,0]} center distanceFactor=${18}>
+        <div class="zone-tag">${zone.name}</div>
+      <//>
+    </group>`;
+}
+
+function PropMesh({prop}){
+  const ref=useRef();
+  useFrame((_,dt)=>{if(ref.current)ref.current.rotation.y+=dt*0.4});
+  const shapes={
+    cube:html`<boxGeometry args=${[0.9,0.9,0.9]}/>`,
+    sphere:html`<sphereGeometry args=${[0.5,16,16]}/>`,
+    barrel:html`<cylinderGeometry args=${[0.35,0.35,0.9,12]}/>`,
+    cone:html`<coneGeometry args=${[0.45,0.9,12]}/>`,
+  };
+  return html`
+    <mesh ref=${ref} position=${[prop.position.x,0.6,prop.position.z]} castShadow>
+      ${shapes[prop.type]||shapes.cube}
+      <meshStandardMaterial color=${"#a78bfa"} roughness=${0.3} metalness=${0.2}/>
+    </mesh>`;
+}
+
+function SpawnBeacon(){
+  const ref=useRef();
+  useFrame(()=>{if(ref.current){ref.current.rotation.y+=0.012;ref.current.position.y=0.7+Math.sin(Date.now()*0.0018)*0.2;}});
+  return html`
+    <group ref=${ref}>
+      <mesh castShadow>
+        <octahedronGeometry args=${[0.55,0]}/>
+        <meshStandardMaterial color=${"#fff"} emissive=${"#3b82f6"} emissiveIntensity=${1.2} roughness=${0.05}/>
+      </mesh>
+    </group>`;
+}
+
+function Scene({snapshot}){
+  const ps     = snapshot?.players?.players||[];
+  const zones  = snapshot?.world?.zones||[];
+  const props  = snapshot?.world?.props||[];
+  const weather= snapshot?.worldState?.weather||"sunny";
+  const hour   = snapshot?.worldState?.hour??12;
+  const isNight= hour<6||hour>20;
+
+  const skyColor=useMemo(()=>{
+    if(isNight)return"#02040e";
+    if(weather==="storm")return"#1a2233";
+    if(weather==="fog")return"#6b7280";
+    if(weather==="snow")return"#c8d8e8";
+    return"#0e2a4a";
+  },[isNight,weather]);
+
+  const groundColor=isNight?"#050a14":weather==="snow"?"#d1d5db":"#0a1520";
+
+  return html`
+    <group>
+      <color attach="background" args=${[skyColor]}/>
+      <fog attach="fog" args=${[skyColor,25,110]}/>
+
+      <ambientLight intensity=${isNight?0.35:0.9}/>
+      <directionalLight position=${[15,22,10]} intensity=${isNight?0.2:2.2} castShadow
+        shadow-mapSize=${[2048,2048]}
+        shadow-camera-left=${-50} shadow-camera-right=${50}
+        shadow-camera-top=${50} shadow-camera-bottom=${-50}/>
+      <pointLight position=${[0,3,0]} intensity=${0.7} color=${"#3b82f6"}/>
+
+      ${(isNight||weather==="storm")?html`<${Stars} radius=${80} depth=${40} count=${2500} factor=${4} fade speed=${0.8}/>`:null}
+
+      <mesh rotation=${[-Math.PI/2,0,0]} position=${[0,-0.02,0]} receiveShadow>
+        <planeGeometry args=${[400,400]}/>
+        <meshStandardMaterial color=${groundColor}/>
+      </mesh>
+
+      <${Grid} position=${[0,0.005,0]} args=${[400,400]}
+        cellSize=${1} cellThickness=${0.4} cellColor=${"#112240"}
+        sectionSize=${10} sectionThickness=${0.9} sectionColor=${"#1e3a6e"}
+        fadeDistance=${90} infiniteGrid/>
+
+      ${zones.map(z=>html`<${ZoneMesh} key=${z.name} zone=${z}/>`)}
+      ${props.map(p=>html`<${PropMesh} key=${p.id} prop=${p}/>`)}
+      ${ps.map(p=>html`<${PlayerMesh} key=${p.id} player=${p}/>`)}
+
+      <${SpawnBeacon}/>
+
+      <${OrbitControls} makeDefault enableDamping dampingFactor=${0.07}
+        maxPolarAngle=${Math.PI/2.05} minDistance=${5} maxDistance=${120}/>
+    </group>`;
+}
+
+function SR({l,v}){return html`<div class="sr"><span>${l}</span><span class="sv">${v}</span></div>`}
+
+function App(){
+  const [snap,setSnap]     = useState(EMPTY);
+  const [status,setStatus] = useState("connexion...");
+  const [last,setLast]     = useState("");
+  const [cmd,setCmd]       = useState("/stats");
+  const [feed,setFeed]     = useState([]);
+  const [tab,setTab]       = useState("players");
+
+  const addFeed=useCallback((msg)=>{
+    setFeed(f=>[`[${new Date().toLocaleTimeString()}] ${msg}`,...f].slice(0,100));
+  },[]);
+
+  const sendCmd=useCallback(async(c)=>{
+    try{
+      const r=await fetch("/api/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:c,player:"ViewerAdmin"})});
+      const d=await r.json();
+      const t=d.result||JSON.stringify(d);
+      setLast(t); addFeed(t);
+    }catch(e){addFeed("Erreur: "+e.message);}
+  },[addFeed]);
+
+  useEffect(()=>{
+    const proto=location.protocol==="https:"?"wss":"ws";
+    const ws=new WebSocket(`${proto}://${location.host}`);
+    ws.onopen=()=>setStatus("connecte");
+    ws.onclose=()=>setStatus("deconnecte");
+    ws.onerror=()=>setStatus("erreur");
+    ws.onmessage=(ev)=>{
+      try{
+        const m=JSON.parse(ev.data);
+        if((m.type==="welcome"||m.type==="snapshot")&&m.snapshot) setSnap(m.snapshot);
+        if(m.type==="command_event"&&m.result){
+          const t=`${m.result.player}: ${m.result.result}`;
+          setLast(t); addFeed(t);
+        }
+      }catch{}
+    };
+    const poll=setInterval(async()=>{
+      try{const r=await fetch("/api/snapshot");setSnap(await r.json());}catch{}
+    },3000);
+    return()=>{clearInterval(poll);ws.close();};
+  },[addFeed]);
+
+  const w   = snap?.worldState||{};
+  const ps  = snap?.players?.players||[];
+  const eye = snap?.eye||{};
+  const wd  = snap?.world||{};
+
+  const quickCmds=[
+    {l:"Storm",c:"/weather storm"},{l:"Sunny",c:"/weather sunny"},
+    {l:"Snow",c:"/weather snow"},{l:"Chaos",c:"/weather chaos"},
+    {l:"Nuit",c:"/time 2"},{l:"Jour",c:"/time 10"},
+    {l:"Stats",c:"/stats"},{l:"World",c:"/world"},
+    {l:"Props",c:"/props"},{l:"Zones",c:"/zones"},
+    {l:"NPCs",c:"/npcs"},{l:"Cars",c:"/cars"},
+    {l:"Reset",c:"/reset"},{l:"History",c:"/history"},
+  ];
+
+  const tabContent={
+    players:ps.length
+      ?ps.map(p=>`${p.connected?"●":"○"} ${p.name} | ${p.job} | $${p.money} | W:${"★".repeat(p.wanted)||0} | ${p.vehicle||"pied"} | ${p.health}HP`).join("\n")
+      :"Aucun joueur",
+    props:(wd.props||[]).length
+      ?(wd.props||[]).map(p=>`[${p.type}] ${p.owner} @ (${p.position.x},${p.position.z})`).join("\n")
+      :"Aucun prop",
+    zones:(wd.zones||[]).map(z=>`[${z.type}] ${z.name} r:${z.radius} @ (${z.center.x},${z.center.z})`).join("\n"),
+    events:(w.worldEvents||[]).slice(-20).reverse().map(e=>`${e.rule}: ${e.result}`).join("\n")||"Aucun event",
+    feed:feed.slice(0,40).join("\n")||"En attente...",
+  };
+
+  return html`
+    <div class="shell">
+      <${Canvas} shadows camera=${{position:[22,18,22],fov:50}}>
+        <${Scene} snapshot=${snap}/>
+      <//>
+
+      <div class="hud">
+
+        <!-- GAUCHE -->
+        <div class="col">
+          <div class="panel">
+            <h2>TroxT Sandbox <span class="badge ${status==="connecte"?"ok":"warn"}">${status}</span></h2>
+            <${SR} l="Joueurs" v=${snap?.players?.connectedPlayers??0}/>
+            <${SR} l="Meteo"   v=${w.weather||"sunny"}/>
+            <${SR} l="Heure"   v=${`${w.hour??12}h00`}/>
+            <${SR} l="Props"   v=${wd?.counts?.props??0}/>
+            <${SR} l="Zones"   v=${wd?.counts?.zones??0}/>
+            <${SR} l="NPCs"    v=${wd?.counts?.npcs??0}/>
+            <${SR} l="ThirdEye obs" v=${eye.totalObservations??0}/>
+            <${SR} l="IA events"    v=${(w.worldEvents||[]).length}/>
+          </div>
+
+          <div class="panel">
+            <h2>Console</h2>
+            <form onSubmit=${(e)=>{e.preventDefault();sendCmd(cmd);}}>
+              <input value=${cmd} onInput=${(e)=>setCmd(e.target.value)} placeholder="/commande"/>
+              <button class="btn" type="submit">GO</button>
+            </form>
+            <div class="quick">
+              ${quickCmds.map(q=>html`
+                <button class="btn btn-xs" type="button" onClick=${()=>sendCmd(q.c)}>${q.l}</button>
+              `)}
+            </div>
+            <div class="last">${last}</div>
+          </div>
+        </div>
+
+        <!-- DROITE -->
+        <div class="col">
+          <div class="panel" style=${{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+            <div class="tab-row">
+              ${["players","props","zones","events","feed"].map(t=>html`
+                <div class="tab ${tab===t?"active":""}" onClick=${()=>setTab(t)}>${t}</div>
+              `)}
+            </div>
+            <div class="feed" style=${{flex:1}}>
+              ${tabContent[tab]}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+}
+
+createRoot(document.getElementById("root")).render(html`<${App}/>`);
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+{
+  "meta": {
+    "id": "meta",
+    "name": "meta",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782096000000,
+    "version": "3.0.0",
+    "schema": "PlayerProfile"
+  },
+  "acc_u928x742_nxt": {
+    "id": "acc_u928x742_nxt",
+    "name": "account",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782010000000,
+    "updatedAt": 1782113897921,
+    "username": "TroxT_Player",
+    "license": "license:cfx_7f9b8a2c3d4e5f6g7h8i",
+    "group": "admin"
+  },
+  "char_901x882_ether": {
+    "id": "char_901x882_ether",
+    "name": "character",
+    "connected": false,
+    "job": {
+      "name": "unemployed",
+      "grade": 0,
+      "label": "Sans emploi"
+    },
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921,
+    "firstName": "John",
+    "lastName": "Doe",
+    "dob": "1998-05-14",
+    "cash": 5000,
+    "bank": 150000
+  },
+  "status": {
+    "id": "status",
+    "name": "status",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 50,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921,
+    "hunger": 85,
+    "thirst": 90,
+    "isDead": false
+  },
+  "position": {
+    "id": "position",
+    "name": "position",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921,
+    "x": 120.45,
+    "y": -1420.32,
+    "z": 29.15,
+    "heading": 180
+  },
+  "inventory": {
+    "0": {
+      "itemId": "item_phone_01",
+      "name": "Smartphone",
+      "count": 1,
+      "metadata": {
+        "phoneNumber": "555-0192"
+      }
+    },
+    "1": {
+      "itemId": "item_key_property_01",
+      "name": "Clé Propriété",
+      "count": 1,
+      "metadata": {
+        "propertyId": "prop_lux_05"
+      }
+    },
+    "2": {
+      "itemId": "item_water_bottle",
+      "name": "Bouteille d'eau",
+      "count": 3,
+      "metadata": {}
+    },
+    "id": "inventory",
+    "name": "inventory",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921
+  },
+  "properties": {
+    "id": "properties",
+    "name": "properties",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921,
+    "owned": [
+      "prop_lux_05"
+    ],
+    "rented": []
+  },
+  "vehicles": {
+    "0": {
+      "vehicleId": "veh_sport_99a",
+      "plate": "TROXT_RP",
+      "model": "sultanrs",
+      "garage": "pillbox_main"
+    },
+    "id": "vehicles",
+    "name": "vehicles",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921
+  },
+  "permissions": {
+    "id": "permissions",
+    "name": "permissions",
+    "connected": false,
+    "job": "Civilian",
+    "money": 500,
+    "wanted": 0,
+    "health": 100,
+    "armor": 0,
+    "inventory": [],
+    "vehicle": null,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "createdAt": 1782113897921,
+    "updatedAt": 1782113897921,
+    "canBypassGuard": false,
+    "allowedZones": [
+      "*"
+    ]
+  }
+}
