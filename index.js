@@ -16,7 +16,7 @@ const app  = express();
 const PORT = 3000;
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "..", "client", "public")));
 
 // ── Systemes core ─────────────────────────────────────────────────────────────
 const thirdEye = new ThirdEye();
@@ -81,8 +81,79 @@ function broadcast(type, payload = {}) {
   for (const c of clients) if (c.readyState === 1) c.send(msg);
 }
 
+// ── Helpers EtherWorld ────────────────────────────────────────────────────────
+function getPlayersArray() {
+  const state = players.getState();
+  const list = Array.isArray(state) ? state : Object.values(state || {});
+  return list.map((p) => {
+    const pos = p?.position || { x: 0, y: 0, z: 0 };
+    return {
+      id: p?.id || "unknown",
+      name: p?.name || p?.username || p?.displayName || p?.id || "Joueur",
+      position: Array.isArray(pos) ? pos : [pos.x || 0, pos.y || 0, pos.z || 0],
+      health: p?.health ?? 100,
+      job: p?.job ?? null,
+      vehicle: p?.vehicle ?? null,
+      wanted: p?.wanted ?? 0,
+    };
+  });
+}
+
+function getBuildObjects() {
+  const state = world.getState?.() || {};
+  const props = Array.isArray(state.props) ? state.props : [];
+  const vehicles = Array.isArray(state.vehicles) ? state.vehicles : [];
+
+  const mappedProps = props.map((p) => ({
+    id: p.id,
+    type: p.propType || p.type || "cube",
+    position: Array.isArray(p.position)
+      ? p.position
+      : [p.position?.x || 0, p.position?.y || 0, p.position?.z || 0],
+    scale: Array.isArray(p.scale) ? p.scale : [2, 0.5, 2],
+    color: p.color || "#4a5568",
+  }));
+
+  const mappedVehicles = vehicles.map((v) => ({
+    id: v.id,
+    type: v.model || v.type || "vehicle",
+    position: Array.isArray(v.position)
+      ? v.position
+      : [v.position?.x || 0, v.position?.y || 0, v.position?.z || 0],
+    scale: Array.isArray(v.scale) ? v.scale : [3, 1.2, 5],
+    color: v.color || "#888888",
+  }));
+
+  return [...mappedProps, ...mappedVehicles];
+}
+
+function sendInit(ws, playerId, playerName) {
+  const current = players.getPlayer(playerId);
+  const pos = current?.position || { x: 0, y: 5, z: 2 };
+
+  ws.send(JSON.stringify({
+    type: "INIT",
+    data: {
+      player: {
+        id: playerId,
+        name: playerName,
+        position: [pos.x || 0, pos.y || 5, pos.z || 2],
+      },
+      players: getPlayersArray(),
+      buildObjects: getBuildObjects(),
+    }
+  }));
+}
+
+function broadcastWorldState() {
+  broadcast("WORLD_STATE", {
+    data: {
+      players: getPlayersArray()
+    }
+  });
+}
+
 // ── Routes REST ───────────────────────────────────────────────────────────────
-app.get("/",              (_,res) => res.redirect("/viewer.html"));
 app.get("/api/health",    (_,res) => res.json({ status:"ok", sandbox:"TroxT RP", thirdEyeActive:thirdEye.isActive, commandsCount:commands.getCommands().length }));
 app.get("/api/snapshot",  (_,res) => res.json(snapshot()));
 app.get("/api/commands",  (_,res) => res.json(commands.getCommands()));
@@ -123,10 +194,8 @@ wss.on("connection", (ws) => {
   console.log(chalk.yellow("[WS] Client connecte"));
 
   ws.send(JSON.stringify({
-    type:     "welcome",
-    message:  "TroxT Sandbox",
-    commands: commands.getCommands(),
-    snapshot: snapshot()
+    type: "CONNECTED",
+    data: { ok: true, message: "TroxT Sandbox connecté" }
   }));
 
   ws.on("message", (raw) => {
@@ -134,30 +203,91 @@ wss.on("connection", (ws) => {
       const d = JSON.parse(raw);
 
       if (d.type === "ping") {
-        ws.send(JSON.stringify({ type:"pong", time:Date.now() }));
+        ws.send(JSON.stringify({ type: "pong", time: Date.now() }));
         return;
       }
 
+      // ── EtherWorld : handshake ────────────────────────────────
+      if (d.type === "HELLO") {
+        const playerName = d?.data?.name || "Joueur";
+        const playerId = `player_${Date.now().toString(36)}`;
+
+        ws.playerId = playerId;
+        players.connect(playerId, playerName);
+        players.updatePosition(playerId, { x: 0, y: 5, z: 2 });
+
+        sendInit(ws, playerId, playerName);
+        broadcastWorldState();
+        return;
+      }
+
+      // ── EtherWorld : chat ─────────────────────────────────────
+      if (d.type === "CHAT") {
+        const text = d?.data?.text || "";
+        const senderId = ws.playerId || "player";
+        const senderPlayer = players.getPlayer(senderId);
+        const senderName = senderPlayer?.name || senderId;
+
+        if (text.trim()) {
+          broadcast("CHAT", {
+            data: {
+              sender: senderName,
+              text
+            }
+          });
+        }
+        return;
+      }
+
+      // ── EtherWorld : mouvement ────────────────────────────────
+      if (d.type === "PLAYER_MOVE") {
+        const senderId = ws.playerId || "player";
+        const posArr = d?.data?.position || [0, 0, 0];
+        const rotArr = d?.data?.rotation || [0, 0, 0];
+
+        const position = {
+          x: Number(posArr[0]) || 0,
+          y: Number(posArr[1]) || 0,
+          z: Number(posArr[2]) || 0,
+        };
+
+        players.connect(senderId, senderId);
+        players.updatePosition(senderId, position);
+
+        broadcast("PLAYER_MOVE", {
+          data: {
+            id: senderId,
+            position: [position.x, position.y, position.z],
+            rotation: rotArr
+          }
+        });
+
+        broadcastWorldState();
+        return;
+      }
+
+      // ── Ancien protocole (viewer/admin) ───────────────────────
       if (d.type === "command") {
         players.connect(d.player || "player");
         ws.playerId = d.player || "player";
         const result = commands.execute(d.cmd, d.player || "player");
-        ws.send(JSON.stringify({ type:"command_result", result }));
+        ws.send(JSON.stringify({ type: "command_result", result }));
         broadcast("command_event", { result });
-        broadcast("snapshot",      { snapshot: snapshot() });
+        broadcast("snapshot", { snapshot: snapshot() });
+        broadcastWorldState();
         return;
       }
 
       if (d.type === "observe") {
         const result = thirdEye.scan(d.target || "unknown");
-        ws.send(JSON.stringify({ type:"observation", result }));
+        ws.send(JSON.stringify({ type: "observation", result }));
         broadcast("snapshot", { snapshot: snapshot() });
         return;
       }
 
       if (d.type === "think") {
         const thought = intel.think(d.prompt || "...", d.context || {});
-        ws.send(JSON.stringify({ type:"thought", thought }));
+        ws.send(JSON.stringify({ type: "thought", thought }));
         return;
       }
 
@@ -165,33 +295,37 @@ wss.on("connection", (ws) => {
         const id = d.playerId || "Unknown";
         ws.playerId = id;
         players.connect(id, id);
-        players.updatePosition(id, d.position || { x:0,y:0,z:0 });
+        players.updatePosition(id, d.position || { x: 0, y: 0, z: 0 });
         if (d.job)              players.setJob(id, d.job);
         if (d.vehicle)          players.setVehicle(id, d.vehicle);
         if (d.wanted !== undefined) players.setWanted(id, d.wanted);
         if (d.health !== undefined) players.setHealth(id, d.health);
         const watch = thirdEye.watchPlayer(id, d);
-        ws.send(JSON.stringify({ type:"player_ack", watch, player:players.getPlayer(id) }));
+        ws.send(JSON.stringify({ type: "player_ack", watch, player: players.getPlayer(id) }));
         broadcast("snapshot", { snapshot: snapshot() });
+        broadcastWorldState();
         return;
       }
 
       if (d.type === "spawn_prop") {
         const prop = world.spawnProp(d.propType || "cube", d.position, d.player || "player");
-        ws.send(JSON.stringify({ type:"prop_spawned", prop }));
+        ws.send(JSON.stringify({ type: "prop_spawned", prop }));
+        broadcast("BUILD_OBJECT_PLACED", { data: prop });
         broadcast("snapshot", { snapshot: snapshot() });
         return;
       }
 
       if (d.type === "spawn_vehicle") {
         const veh = world.spawnVehicle(d.model || "sultan", d.position, d.player || "player");
-        ws.send(JSON.stringify({ type:"vehicle_spawned", vehicle:veh }));
+        ws.send(JSON.stringify({ type: "vehicle_spawned", vehicle: veh }));
+        broadcast("BUILD_OBJECT_PLACED", { data: veh });
         broadcast("snapshot", { snapshot: snapshot() });
         return;
       }
 
-    } catch {
-      ws.send(JSON.stringify({ type:"error", message:"Message invalide" }));
+    } catch (err) {
+      console.error("[WS] Message invalide:", err);
+      ws.send(JSON.stringify({ type: "error", message: "Message invalide" }));
     }
   });
 
@@ -199,6 +333,7 @@ wss.on("connection", (ws) => {
     clients.delete(ws);
     if (ws.playerId) {
       players.disconnect(ws.playerId);
+      broadcastWorldState();
       broadcast("snapshot", { snapshot: snapshot() });
     }
     console.log(chalk.gray("[WS] Client deconnecte"));

@@ -50,7 +50,7 @@ import { createSnapshotsRouter }    from './api/snapshots.routes.js';
 import { createLogsRouter }         from './api/logs.routes.js';
 import { createEntitiesRouter }     from './api/entities.routes.js';
 import { createPrismRouter }        from './api/prism.routes.js';
-import { createAgentsRouter } from './api/agents.routes.js';
+import { createAgentsRouter }       from './api/agents.routes.js';
 import { createBrainRouter }        from './api/brain.routes.js';
 import { troxtmodRouter }           from './modules/TroxTMod/router.js';
 import { worldRegistryRouter,
@@ -80,7 +80,9 @@ export async function bootstrap(): Promise<void> {
   // ── 0. Settings ───────────────────────────────────────────
   const settings  = loadSettings();
   const PORT      = Number(process.env['PORT']) || settings.server.port || NETWORK.DEFAULT_PORT;
-  const PUBLIC_DIR = path.resolve(__dirname, 'public');
+  
+  // 🔥 FIX ICI : On pointe vers client/public au lieu de server/public
+  const PUBLIC_DIR = path.resolve(__dirname, '..', 'client', 'public');
 
   printBanner(settings, 'start');
 
@@ -279,8 +281,8 @@ function mountRoutes(
   app.use('/api/admin/logs',      createLogsRouter(ctx));
   app.use('/api/entities',        createEntitiesRouter(ctx));
   app.use('/api/prism',           createPrismRouter(ctx));
-  app.use('/api/agents', createAgentsRouter(ctx));
-  app.use('/api/brain',  createBrainRouter(ctx));
+  app.use('/api/agents',          createAgentsRouter(ctx));
+  app.use('/api/brain',           createBrainRouter(ctx));
 
   // ── Settings publics ──────────────────────────────────────
   app.get('/api/settings/public', (_req, res) => {
